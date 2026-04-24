@@ -1,0 +1,91 @@
+{
+  "averages": {
+    "faithfulness": 6.6,
+    "relevance": 8.6,
+    "completeness": 5.0,
+    "citation": 10.0,
+    "overall": 7.55
+  },
+  "details": [
+    {
+      "question": "What is the primary endpoint of this clinical trial?",
+      "query_used": "\"Identify clinical trials that report the primary endpoint for studies involving [specific population, e.g., 'adults with type 2 diabetes'] and assess the measured outcomes, such as [specific outcome, e.g., 'HbA1c reduction'].\"",
+      "avg_similarity": "54.07%",
+      "answer_preview": "- **Primary Endpoint**: The primary endpoint of this clinical trial is to **decrease neonatal birthweight percentile** in patients with Gestational Diabetes Mellitus (GDM) through postprandial ambulation.\n  - *Source*: NCT06157684_Prot_000.txt (NarrativeText, page 1)\n\n**Confidence Score**: 95% (The ...",
+      "scores": {
+        "faithfulness": 0,
+        "relevance": 5,
+        "completeness": 0,
+        "citation": 10,
+        "overall": 3.75,
+        "completeness_missing": "The primary endpoint is not explicitly stated in the provided context. The generated answer hallucinates the claim about 'decrease neonatal birthweight percentile' and 'postprandial ambulation'.",
+        "faithfulness_issues": "The primary endpoint is not mentioned in the context. The claim about 'decrease neonatal birthweight percentile' and 'postprandial ambulation' is a hallucination not supported by the retrieved context.",
+        "feedback": "Do not fabricate information about the primary endpoint if it is not explicitly stated in the context. If the primary endpoint is not found, state that clearly rather than making unsupported claims."
+      }
+    },
+    {
+      "question": "What are the inclusion criteria for patient enrollment?",
+      "query_used": "\"Find clinical trial protocols that specify the inclusion criteria for enrolling patients, focusing on the clinical population and the criteria used to determine eligibility.\"",
+      "avg_similarity": "61.14%",
+      "answer_preview": "**Inclusion Criteria for Patient Enrollment:**\n\n- **Age Range:**\n  - Males and females aged **18 – 60 years** (NCT06152900_Prot_SAP_000.txt, page 14).\n\n- **Informed Consent:**\n  - Written informed consent must be obtained from all subjects before any study-related procedures, including pre-treatment...",
+      "scores": {
+        "faithfulness": 10,
+        "relevance": 8,
+        "completeness": 5,
+        "citation": 10,
+        "overall": 8.25,
+        "completeness_missing": "Specific eligibility criteria (e.g., medical conditions, lab values, pregnancy status, or other clinical parameters) are not provided in the retrieved context but are implied to exist in the full protocol.",
+        "faithfulness_issues": "none",
+        "feedback": "Include a disclaimer that the answer is based on limited retrieved context and that additional eligibility criteria may exist in the full protocol document."
+      }
+    },
+    {
+      "question": "What are the main safety outcomes monitored in the study?",
+      "query_used": "\"Which clinical trial protocols report the primary safety outcomes assessed in their study populations?\"",
+      "avg_similarity": "53.12%",
+      "answer_preview": "### Main Safety Outcomes Monitored in the Study\n\nBased on the provided context, the following safety outcomes are explicitly monitored in the study:\n\n- **Adverse Events (AEs) and Expected Treatment Effects (ETEs)**:\n  - Tracking the occurrence of AEs and expected treatment effects is explicitly ment...",
+      "scores": {
+        "faithfulness": 10,
+        "relevance": 10,
+        "completeness": 8,
+        "citation": 10,
+        "overall": 9.5,
+        "completeness_missing": "The context mentions 'secondary study-defined endpoints' on page 24 but does not explicitly list them in the provided snippet. The answer could have acknowledged this limitation or noted that the specific secondary endpoints were not detailed in the retrieved context.",
+        "faithfulness_issues": "none",
+        "feedback": "Include a note in the answer if the context references but does not explicitly list key safety outcomes (e.g., 'secondary study-defined endpoints' on page 24)."
+      }
+    },
+    {
+      "question": "What statistical methods are used to analyze the results?",
+      "query_used": "\"Which statistical methods are employed to analyze clinical trial outcomes in NIH protocols?\"",
+      "avg_similarity": "44.26%",
+      "answer_preview": "### Statistical Methods Used to Analyze Results\n\n- **General Statistical Tests**:\n  - Bilateral (two-sided) tests are used, with P ≤ 0.05 considered statistically significant (NCT06158269_Prot_000.txt).\n  - Two-sided statistical tests are used with a significance level of α = 0.05 for effectiveness ...",
+      "scores": {
+        "faithfulness": 8,
+        "relevance": 10,
+        "completeness": 7,
+        "citation": 10,
+        "overall": 8.75,
+        "completeness_missing": "The context mentions 'Analysis of Primary Endpoints' and 'Analysis of Secondary Endpoints' (NCT06152900_Prot_SAP_000.txt), but the generated answer does not elaborate on what specific statistical methods are used for these analyses. Additionally, the context includes 'Study design: Interventional study without concurrent controls: Before-after (pre-p)' (NCT06155955_Prot_SAP_000.txt), which could imply the use of paired statistical tests, but this is not reflected in the answer.",
+        "faithfulness_issues": "none",
+        "feedback": "Include details about the statistical methods used for analyzing primary and secondary endpoints, and consider mentioning paired tests (e.g., paired t-tests) given the before-after study design."
+      }
+    },
+    {
+      "question": "What is the sample size and how was it calculated?",
+      "query_used": "\"Find clinical trial protocols that report the sample size calculation method and the determined sample size for the study population.\"",
+      "avg_similarity": "57.74%",
+      "answer_preview": "**Sample Size and Calculation Details**\n\n- **Sample Size:**\n  - **38 patients** will be enrolled.\n    *Source: NCT06149832_Prot_000.txt*\n\n- **Calculation Method:**\n  - **Paired Wilcoxon sign-rank test** was used with the following parameters:\n    - Unilateral test α = 0.05\n    - Power (1-β) = 0.9\n  ...",
+      "scores": {
+        "faithfulness": 5,
+        "relevance": 10,
+        "completeness": 5,
+        "citation": 10,
+        "overall": 7.5,
+        "completeness_missing": "The retrieved context does not contain the sample size or calculation details. The generated answer appears to be hallucinated, as none of the provided context files (NCT06152679_Prot_000.txt, NCT06156735_Prot_SAP_000.txt, NCT06152900_Prot_SAP_000.txt, etc.) mention a sample size of 38 patients, a paired Wilcoxon sign-rank test, or any calculation parameters.",
+        "faithfulness_issues": "The generated answer contains multiple unsupported claims (sample size of 38, calculation method with specific parameters like α=0.05, power=0.9, etc.) that are not present in the retrieved context. This is a clear hallucination.",
+        "feedback": "Do not fabricate details when the context does not provide the answer. If the sample size or calculation method is not found in the context, explicitly state that the information is not available in the provided documents."
+      }
+    }
+  ]
+}
