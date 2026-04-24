@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🧬 The Clinical Oracle
 ### NIH Clinical Intelligence System — RAG Agent for Clinical Trial Protocols
 
@@ -193,3 +194,24 @@ archives_oracle.json
 __pycache__/
 *.pyc
 ```
+=======
+---
+title: Clinical Oral RAG
+emoji: 🚀
+colorFrom: red
+colorTo: red
+sdk: docker
+app_port: 8501
+tags:
+- streamlit
+pinned: false
+short_description: Streamlit template space
+---
+
+# Welcome to Streamlit!
+
+Edit `/src/streamlit_app.py` to customize this app to your heart's desire. :heart:
+
+If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
+forums](https://discuss.streamlit.io).
+>>>>>>> a1ba6223919726b0aaba3be9d5a3abb83420de02

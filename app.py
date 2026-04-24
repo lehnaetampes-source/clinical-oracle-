@@ -3,7 +3,6 @@ import time
 import json
 import numpy as np
 import streamlit as st
-from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
 from sklearn.metrics.pairwise import cosine_similarity
@@ -13,7 +12,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-load_dotenv()
 ARCHIVE_FILE = "archives_oracle.json"
 
 if "initialized" not in st.session_state:
@@ -70,7 +68,11 @@ st.markdown("""
 def load_oracle():
     emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", encode_kwargs={"normalize_embeddings": True})
     vs  = Chroma(persist_directory="chroma_db", embedding_function=emb)
-    llm = ChatMistralAI(model="mistral-small-latest", temperature=0)
+    llm = ChatMistralAI(
+        model="mistral-small-latest",
+        temperature=0,
+        api_key=os.environ.get("MISTRAL_API_KEY")
+    )
     return vs, llm, emb
 
 vectorstore, llm, embeddings = load_oracle()
@@ -133,7 +135,7 @@ def run_judge(question, context, answer):
 def score_class(v):
     return "score-high" if v >= 7 else ("score-mid" if v >= 4 else "score-low")
 
-# BOOT — simple et rapide
+# BOOT
 if not st.session_state.initialized:
     placeholder = st.empty()
     with placeholder.container():
@@ -154,7 +156,7 @@ if not st.session_state.initialized:
 # SIDEBAR
 with st.sidebar:
     if Path("logo.png").exists():
-        st.image("logo.png", use_container_width=True)
+        st.image("logo.png", use_column_width=True)  # ✅ FIXED: was use_container_width=True
     st.markdown("<h2 style='color:#0047AB;font-family:Orbitron;text-align:center;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
     if st.button("🗑️ CLEAR CONVERSATION"):
         st.session_state.chat_history = []
