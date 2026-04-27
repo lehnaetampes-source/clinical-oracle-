@@ -66,7 +66,12 @@ st.markdown("""
 
 @st.cache_resource(show_spinner=False)
 def load_oracle():
-    emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", encode_kwargs={"normalize_embeddings": True})
+    # ✅ FIX : modèle local pour éviter le timeout au démarrage
+    emb = HuggingFaceEmbeddings(
+        model_name="./models/all-MiniLM-L6-v2",
+        encode_kwargs={"normalize_embeddings": True}
+    )
+    # ✅ FIX : chroma_db dans un sous-dossier dédié
     vs  = Chroma(persist_directory="chroma_db", embedding_function=emb)
     llm = ChatMistralAI(
         model="mistral-small-latest",
@@ -75,7 +80,12 @@ def load_oracle():
     )
     return vs, llm, emb
 
-vectorstore, llm, embeddings = load_oracle()
+try:
+    vectorstore, llm, embeddings = load_oracle()
+    oracle_ready = True
+except Exception as e:
+    oracle_ready = False
+    oracle_error = str(e)
 
 combined_prompt = ChatPromptTemplate.from_template("""
 You are a Senior Clinical Data Analyst working with NIH clinical trial protocols.
@@ -107,7 +117,7 @@ def run_rag(question: str, k: int) -> dict:
     docs      = [r[0] for r in docs_with_scores]
     l2_scores = [r[1] for r in docs_with_scores]
     if not docs:
-        return {"answer": "No relevant documents found.", "sources_details": [], "query_used": question, "judge_scores": None}
+        return {"answer": "No relevant documents found.", "sources_details": [], "query_used": question, "judge_scores": None, "context_preview": ""}
     query_vec  = np.array(embeddings.embed_query(question)).reshape(1, -1)
     doc_vecs   = np.array(embeddings.embed_documents([d.page_content for d in docs]))
     cos_scores = cosine_similarity(query_vec, doc_vecs)[0]
@@ -156,7 +166,7 @@ if not st.session_state.initialized:
 # SIDEBAR
 with st.sidebar:
     if Path("logo.png").exists():
-        st.image("logo.png", use_column_width=True)  # ✅ FIXED: was use_container_width=True
+        st.image("logo.png", use_column_width=True)
     st.markdown("<h2 style='color:#0047AB;font-family:Orbitron;text-align:center;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
     if st.button("🗑️ CLEAR CONVERSATION"):
         st.session_state.chat_history = []
@@ -175,18 +185,28 @@ with st.sidebar:
         st.markdown(f"<small style='color:#0047AB'>k actuel : **{st.session_state.k_val}** chunks</small>", unsafe_allow_html=True)
     with tabs[1]:
         if os.path.exists(ARCHIVE_FILE):
-            with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
-                history_files = json.load(f)
-            for item in reversed(history_files[-5:]):
-                if st.button(f"📄 {item['timestamp']}", key=item['timestamp']):
-                    st.session_state.chat_history = item['full_chat']
-                    st.rerun()
+            try:
+                with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                    history_files = json.load(f)
+                for item in reversed(history_files[-5:]):
+                    if st.button(f"📄 {item['timestamp']}", key=item['timestamp']):
+                        st.session_state.chat_history = item['full_chat']
+                        st.rerun()
+            except Exception:
+                st.markdown("<small style='color:#E63946'>Archive corrompue.</small>", unsafe_allow_html=True)
+        else:
+            st.markdown("<small style='color:#555'>Pas encore d'archives.</small>", unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("<div style='text-align:center;color:#0047AB;font-family:Orbitron;font-size:0.7rem;'>MEDICAL AGENT v4.0 ELITE</div>", unsafe_allow_html=True)
 
 # MAIN
 st.markdown("<div class='oracle-title'>THE CLINICAL ORACLE</div>", unsafe_allow_html=True)
 st.markdown("<div class='nih-subtitle'>NIH CLINICAL INTELLIGENCE SYSTEM</div>", unsafe_allow_html=True)
+
+# ✅ Affiche erreur propre si oracle pas chargé
+if not oracle_ready:
+    st.error(f"❌ Oracle failed to load: {oracle_error}\nVérifiez MISTRAL_API_KEY et le dossier chroma_db.")
+    st.stop()
 
 for entry in st.session_state.chat_history:
     st.markdown(f"**>> QUERY:** {entry['query']}")
@@ -209,16 +229,19 @@ with st.form(key='chat_form', clear_on_submit=True):
 
 if submit_button and query:
     with st.spinner("⚡ ORACLE ANALYZING..."):
-        result = run_rag(query, k=st.session_state.k_val)
-        judge_scores = None
-        if st.session_state.enable_judge:
-            judge_scores = run_judge(query, result.get("context_preview",""), result["answer"])
-        st.session_state.chat_history.append({
-            "query": query, "response": result["answer"],
-            "query_used": result["query_used"], "sources": result["sources_details"],
-            "judge_scores": judge_scores
-        })
-        st.session_state.last_docs = result["sources_details"]
+        try:
+            result = run_rag(query, k=st.session_state.k_val)
+            judge_scores = None
+            if st.session_state.enable_judge:
+                judge_scores = run_judge(query, result.get("context_preview",""), result["answer"])
+            st.session_state.chat_history.append({
+                "query": query, "response": result["answer"],
+                "query_used": result["query_used"], "sources": result["sources_details"],
+                "judge_scores": judge_scores
+            })
+            st.session_state.last_docs = result["sources_details"]
+        except Exception as e:
+            st.error(f"Erreur RAG: {e}")
         st.rerun()
 
 if st.session_state.chat_history:
