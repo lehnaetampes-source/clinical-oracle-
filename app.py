@@ -5,12 +5,16 @@ import numpy as np
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
+
+# ✅ Charge le .env automatiquement
+load_dotenv()
 
 ARCHIVE_FILE = "archives_oracle.json"
 
@@ -66,13 +70,13 @@ st.markdown("""
 
 @st.cache_resource(show_spinner=False)
 def load_oracle():
-    # ✅ FIX : modèle local pour éviter le timeout au démarrage
+    # ✅ Modèle en ligne (pas de timeout en local)
     emb = HuggingFaceEmbeddings(
-        model_name="./models/all-MiniLM-L6-v2",
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
         encode_kwargs={"normalize_embeddings": True}
     )
-    # ✅ FIX : chroma_db dans un sous-dossier dédié
-    vs  = Chroma(persist_directory="chroma_db", embedding_function=emb)
+    # ✅ Chroma à la racine du dossier (là où est chroma.sqlite3)
+    vs = Chroma(persist_directory=r"C:\Users\lehna\OneDrive\Desktop\CERTIFICATION JEDHA DATA SCIENTIST\oracle clinical\chroma_db_COMPLETE", embedding_function=emb)
     llm = ChatMistralAI(
         model="mistral-small-latest",
         temperature=0,
@@ -203,9 +207,8 @@ with st.sidebar:
 st.markdown("<div class='oracle-title'>THE CLINICAL ORACLE</div>", unsafe_allow_html=True)
 st.markdown("<div class='nih-subtitle'>NIH CLINICAL INTELLIGENCE SYSTEM</div>", unsafe_allow_html=True)
 
-# ✅ Affiche erreur propre si oracle pas chargé
 if not oracle_ready:
-    st.error(f"❌ Oracle failed to load: {oracle_error}\nVérifiez MISTRAL_API_KEY et le dossier chroma_db.")
+    st.error(f"❌ Oracle failed to load: {oracle_error}\nVérifiez MISTRAL_API_KEY et chroma.sqlite3.")
     st.stop()
 
 for entry in st.session_state.chat_history:
