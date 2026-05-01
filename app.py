@@ -1,20 +1,20 @@
 import os
 import time
 import json
+import sqlite3
+import shutil
 import numpy as np
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
-from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
-# ✅ Charge le .env automatiquement
-load_dotenv()
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
 
 ARCHIVE_FILE = "archives_oracle.json"
 
@@ -68,15 +68,55 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource(show_spinner=False)
-def load_oracle():
-    # ✅ Modèle en ligne (pas de timeout en local)
+def is_chroma_valid():
+    """Vérifie que chroma.sqlite3 est une vraie base Chroma."""
+    sqlite_path = Path("chroma_db") / "chroma.sqlite3"
+    if not sqlite_path.exists():
+        return False
+    try:
+        conn = sqlite3.connect(str(sqlite_path))
+        tables = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+        conn.close()
+        table_names = [t[0] for t in tables]
+        # Une vraie DB Chroma contient toujours la table "collections"
+        return "collections" in table_names
+    except Exception:
+        return False
+
+def build_chroma_from_docs():
+    """Reconstruit le chroma_db depuis docs_txt/."""
+    st.info("⚙️ Base vectorielle invalide — reconstruction depuis docs_txt/... (2-3 min)")
     emb = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         encode_kwargs={"normalize_embeddings": True}
     )
-    # ✅ Chroma à la racine du dossier (là où est chroma.sqlite3)
-    vs = Chroma(persist_directory=r"C:\Users\lehna\OneDrive\Desktop\CERTIFICATION JEDHA DATA SCIENTIST\oracle clinical\chroma_db_COMPLETE", embedding_function=emb)
+    loader = DirectoryLoader(
+        "docs_txt/", glob="*.txt",
+        loader_cls=TextLoader,
+        loader_kwargs={"encoding": "utf-8"}
+    )
+    docs = loader.load()
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = splitter.split_documents(docs)
+    # Supprime l'ancienne DB corrompue
+    if Path("chroma_db").exists():
+        shutil.rmtree("chroma_db")
+    Chroma.from_documents(chunks, emb, persist_directory="chroma_db")
+    st.success("✅ Base vectorielle reconstruite !")
+
+# ✅ Vérifie et reconstruit si nécessaire AVANT de charger
+if not is_chroma_valid():
+    build_chroma_from_docs()
+
+@st.cache_resource(show_spinner=False)
+def load_oracle():
+    emb = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        encode_kwargs={"normalize_embeddings": True}
+    )
+    vs = Chroma(persist_directory="chroma_db", embedding_function=emb)
     llm = ChatMistralAI(
         model="mistral-small-latest",
         temperature=0,
@@ -84,12 +124,7 @@ def load_oracle():
     )
     return vs, llm, emb
 
-try:
-    vectorstore, llm, embeddings = load_oracle()
-    oracle_ready = True
-except Exception as e:
-    oracle_ready = False
-    oracle_error = str(e)
+vectorstore, llm, embeddings = load_oracle()
 
 combined_prompt = ChatPromptTemplate.from_template("""
 You are a Senior Clinical Data Analyst working with NIH clinical trial protocols.
@@ -121,7 +156,7 @@ def run_rag(question: str, k: int) -> dict:
     docs      = [r[0] for r in docs_with_scores]
     l2_scores = [r[1] for r in docs_with_scores]
     if not docs:
-        return {"answer": "No relevant documents found.", "sources_details": [], "query_used": question, "judge_scores": None, "context_preview": ""}
+        return {"answer": "No relevant documents found.", "sources_details": [], "query_used": question, "context_preview": ""}
     query_vec  = np.array(embeddings.embed_query(question)).reshape(1, -1)
     doc_vecs   = np.array(embeddings.embed_documents([d.page_content for d in docs]))
     cos_scores = cosine_similarity(query_vec, doc_vecs)[0]
@@ -157,7 +192,10 @@ if not st.session_state.initialized:
         _, col, _ = st.columns([1, 2, 1])
         with col:
             if Path("logo.png").exists():
-                st.image("logo.png", width=400)
+                try:
+                    st.image("logo.png", width=400)
+                except Exception:
+                    pass
             st.markdown("<div class='oracle-title'>THE CLINICAL ORACLE</div>", unsafe_allow_html=True)
             bar = st.progress(0)
             for i in range(101):
@@ -170,7 +208,10 @@ if not st.session_state.initialized:
 # SIDEBAR
 with st.sidebar:
     if Path("logo.png").exists():
-        st.image("logo.png", use_column_width=True)
+        try:
+            st.image("logo.png", use_container_width=True)
+        except Exception:
+            pass
     st.markdown("<h2 style='color:#0047AB;font-family:Orbitron;text-align:center;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
     if st.button("🗑️ CLEAR CONVERSATION"):
         st.session_state.chat_history = []
@@ -189,27 +230,18 @@ with st.sidebar:
         st.markdown(f"<small style='color:#0047AB'>k actuel : **{st.session_state.k_val}** chunks</small>", unsafe_allow_html=True)
     with tabs[1]:
         if os.path.exists(ARCHIVE_FILE):
-            try:
-                with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
-                    history_files = json.load(f)
-                for item in reversed(history_files[-5:]):
-                    if st.button(f"📄 {item['timestamp']}", key=item['timestamp']):
-                        st.session_state.chat_history = item['full_chat']
-                        st.rerun()
-            except Exception:
-                st.markdown("<small style='color:#E63946'>Archive corrompue.</small>", unsafe_allow_html=True)
-        else:
-            st.markdown("<small style='color:#555'>Pas encore d'archives.</small>", unsafe_allow_html=True)
+            with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                history_files = json.load(f)
+            for item in reversed(history_files[-5:]):
+                if st.button(f"📄 {item['timestamp']}", key=item['timestamp']):
+                    st.session_state.chat_history = item['full_chat']
+                    st.rerun()
     st.markdown("---")
     st.markdown("<div style='text-align:center;color:#0047AB;font-family:Orbitron;font-size:0.7rem;'>MEDICAL AGENT v4.0 ELITE</div>", unsafe_allow_html=True)
 
 # MAIN
 st.markdown("<div class='oracle-title'>THE CLINICAL ORACLE</div>", unsafe_allow_html=True)
 st.markdown("<div class='nih-subtitle'>NIH CLINICAL INTELLIGENCE SYSTEM</div>", unsafe_allow_html=True)
-
-if not oracle_ready:
-    st.error(f"❌ Oracle failed to load: {oracle_error}\nVérifiez MISTRAL_API_KEY et chroma.sqlite3.")
-    st.stop()
 
 for entry in st.session_state.chat_history:
     st.markdown(f"**>> QUERY:** {entry['query']}")
@@ -232,19 +264,16 @@ with st.form(key='chat_form', clear_on_submit=True):
 
 if submit_button and query:
     with st.spinner("⚡ ORACLE ANALYZING..."):
-        try:
-            result = run_rag(query, k=st.session_state.k_val)
-            judge_scores = None
-            if st.session_state.enable_judge:
-                judge_scores = run_judge(query, result.get("context_preview",""), result["answer"])
-            st.session_state.chat_history.append({
-                "query": query, "response": result["answer"],
-                "query_used": result["query_used"], "sources": result["sources_details"],
-                "judge_scores": judge_scores
-            })
-            st.session_state.last_docs = result["sources_details"]
-        except Exception as e:
-            st.error(f"Erreur RAG: {e}")
+        result = run_rag(query, k=st.session_state.k_val)
+        judge_scores = None
+        if st.session_state.enable_judge:
+            judge_scores = run_judge(query, result.get("context_preview",""), result["answer"])
+        st.session_state.chat_history.append({
+            "query": query, "response": result["answer"],
+            "query_used": result["query_used"], "sources": result["sources_details"],
+            "judge_scores": judge_scores
+        })
+        st.session_state.last_docs = result["sources_details"]
         st.rerun()
 
 if st.session_state.chat_history:
